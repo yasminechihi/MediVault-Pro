@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediVault Pro - Plateforme Médicale Sécurisée</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏥 MediVault Pro</h1>
+            <p>Plateforme Sécurisée de Gestion Médicale</p>
+        </header>
+
+        <!-- Section Choix Inscription/Connexion -->
+        <div id="authChoiceSection" class="section">
+            <h2>Bienvenue sur MediVault Pro</h2>
+            <div class="auth-buttons">
+                <button onclick="showLoginForm()" class="auth-btn">Se Connecter</button>
+                <button onclick="showRegisterForm()" class="auth-btn secondary">Créer un Compte</button>
+            </div>
+        </div>
+
+        <!-- Section Connexion -->
+        <div id="loginSection" class="section hidden">
+            <h2>Connexion</h2>
+            <form id="loginForm">
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Mot de passe" required>
+                <select id="loginRole" required>
+                    <option value="">Sélectionnez votre rôle</option>
+                    <option value="patient">Patient</option>
+                    <option value="doctor">Médecin</option>
+                </select>
+                <button type="submit">Se connecter</button>
+            </form>
+            <p class="auth-switch">Pas de compte? <a href="#" onclick="showRegisterForm()">Créer un compte</a></p>
+        </div>
+
+        <!-- Section Inscription -->
+        <div id="registerSection" class="section hidden">
+            <h2>Inscription</h2>
+            <form id="registerForm">
+                <input type="text" id="registerName" placeholder="Nom complet" required>
+                <input type="email" id="registerEmail" placeholder="Email" required>
+                <input type="password" id="registerPassword" placeholder="Mot de passe (min. 6 caractères)" required>
+                <select id="registerRole" required>
+                    <option value="">Sélectionnez votre rôle</option>
+                    <option value="patient">Patient</option>
+                    <option value="doctor">Médecin</option>
+                </select>
+                <input type="tel" id="registerPhone" placeholder="Téléphone (optionnel)">
+                <button type="submit">S'inscrire</button>
+            </form>
+            <p class="auth-switch">Déjà inscrit? <a href="#" onclick="showLoginForm()">Se connecter</a></p>
+        </div>
+
+        <!-- Section Vérification Email -->
+        <div id="emailVerifySection" class="section hidden">
+            <h2>Vérification de votre Email</h2>
+            <p>Un code de vérification a été envoyé à <span id="verifyEmail"></span></p>
+            <input type="text" id="emailVerifyCode" placeholder="Code à 6 chiffres" maxlength="6">
+            <button onclick="verifyEmail()">Vérifier l'email</button>
+            <p class="resend-link"><a href="#" onclick="resendVerificationCode()">Renvoyer le code</a></p>
+        </div>
+
+        <!-- Section MFA -->
+        <div id="mfaSection" class="section hidden">
+            <h2>Vérification de Sécurité</h2>
+            <p>Code de sécurité envoyé à votre email</p>
+            <input type="text" id="mfaCode" placeholder="Code à 6 chiffres" maxlength="6">
+            <button onclick="verifyMFA()">Vérifier</button>
+        </div>
+
+        <!-- Application Principale - Interface Médecin -->
+        <div id="doctorApp" class="section hidden">
+            <h2>👨‍⚕️ Interface Médecin</h2>
+            <p class="welcome-message">Bienvenue, Dr. <span id="doctorName"></span></p>
+            
+            <!-- Section Gestion des Patients -->
+            <div class="patients-section">
+                <h3>Gestion des Dossiers Patients</h3>
+                <div class="patient-form">
+                    <input type="text" id="patientName" placeholder="Nom du patient">
+                    <input type="text" id="patientId" placeholder="ID Patient">
+                    <textarea id="medicalRecord" placeholder="Notes médicales"></textarea>
+                    <button onclick="openPopup()">Ajouter dossier</button>
+
+                </div>
+                <div id="patientsList"></div>
+            </div>
+        </div>
+
+        <!-- Application Principale - Interface Patient -->
+        <div id="patientApp" class="section hidden">
+            <h2>👤 Interface Patient</h2>
+            <p class="welcome-message">Bienvenue, <span id="patientName"></span></p>
+            
+            <!-- Section Ordonnances -->
+            <div class="patient-section">
+                <h3>💊 Mes Ordonnances</h3>
+                <div id="prescriptionsList" class="data-list"></div>
+            </div>
+
+            <!-- Section Médecins -->
+            <div class="patient-section">
+                <h3>👨‍⚕️ Mes Médecins</h3>
+                <div id="doctorsList" class="data-list"></div>
+            </div>
+
+            <!-- Section Rendez-vous -->
+            <div class="patient-section">
+                <h3>📅 Mes Rendez-vous</h3>
+                <div id="appointmentsList" class="data-list"></div>
+            </div>
+
+            <!-- Section Notes Médicales -->
+            <div class="patient-section">
+                <h3>📝 Notes de Mes Médecins</h3>
+                <div id="medicalNotesList" class="data-list"></div>
+            </div>
+        </div>
+
+        <!-- Section commune pour le chiffrement et Azure Vault -->
+        <div id="commonFeatures" class="section hidden">
+            <!-- Les sections de chiffrement et Azure Vault restent ici -->
+           
+        </div>
+
+        <div id="userInfo" class="hidden">
+            <p>Connecté en tant que: <span id="userEmail"></span> | Rôle: <span id="userRole"></span></p>
+            <button onclick="logout()">Déconnexion Sécurisée</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <!-- POPUP AJOUT DOSSIER -->
+<div id="encryptionPopup" class="popup hidden">
+    <div class="popup-content">
+        <h3>Choisir le type de chiffrement</h3>
+
+        <label>Type de chiffrement :</label>
+        <select id="encryptionType">
+            <option value="cesar">Chiffrement César</option>
+            <option value="vigenere">Chiffrement Vigenère</option>
+            <option value="aes">AES-256</option>
+            <option value="rsa">RSA</option>
+        </select>
+
+        <label>Clé (si nécessaire) :</label>
+        <input type="text" id="encryptionKey" placeholder="Clé (lettre ou mot)">
+
+        <button onclick="confirmEncryption()">Chiffrer & Ajouter</button>
+        <button onclick="closePopup()">Annuler</button>
+    </div>
+</div>
+
+<style>
+.popup { 
+    position: fixed; 
+    top:0; left:0; width:100%; height:100%; 
+    background: rgba(0,0,0,0.6);
+    display:flex; justify-content:center; align-items:center;
+}
+.popup.hidden { display:none; }
+.popup-content {
+    background:white; padding:20px; border-radius:8px; width:350px;
+}
+</style>
+<!-- POPUP AFFICHAGE DOSSIER -->
+ <label>PDF médical :</label>
+<input type="file" id="pdfFile" accept="application/pdf">
+
+<div id="readPopup" class="popup hidden">
+    <div class="popup-content">
+        <h3>Lecture du dossier</h3>
+        <p id="recordContent"></p>
+        <button onclick="closeReadPopup()">Fermer</button>
+    </div>
+</div>
+
+<style>
+.popup { 
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.6); display:flex;
+    justify-content:center; align-items:center;
+}
+.popup.hidden { display:none; }
+.popup-content {
+    background:white; padding:20px; border-radius:8px; width:400px;
+}
+</style>
+
+</body>
+</html>

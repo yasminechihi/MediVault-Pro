@@ -1,0 +1,735 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+header {
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+header p {
+    font-size: 1.2em;
+    opacity: 0.9;
+}
+
+.section {
+    padding: 30px;
+    border-bottom: 1px solid #eee;
+}
+
+.hidden {
+    display: none;
+}
+
+h2 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 1.8em;
+    text-align: center;
+}
+
+h3 {
+    color: #34495e;
+    margin: 25px 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #3498db;
+}
+
+h4 {
+    color: #7f8c8d;
+    margin: 15px 0 10px 0;
+}
+
+/* Styles pour les formulaires */
+input, textarea, button {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+input:focus, textarea:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.2);
+}
+
+button {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+button:hover {
+    background: linear-gradient(135deg, #2980b9, #3498db);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Styles pour l'authentification */
+.auth-buttons {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin: 30px 0;
+}
+
+.auth-btn {
+    padding: 15px 30px;
+    font-size: 18px;
+    width: auto;
+    min-width: 200px;
+}
+
+.auth-btn.secondary {
+    background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+}
+
+.auth-btn.secondary:hover {
+    background: linear-gradient(135deg, #7f8c8d, #95a5a6);
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 20px;
+    color: #7f8c8d;
+}
+
+.auth-switch a {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.auth-switch a:hover {
+    text-decoration: underline;
+}
+
+.resend-link {
+    text-align: center;
+    margin-top: 15px;
+}
+
+.resend-link a {
+    color: #e74c3c;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.resend-link a:hover {
+    text-decoration: underline;
+}
+
+/* Sections algorithmes */
+.algorithm {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 15px 0;
+    border-left: 4px solid #3498db;
+}
+
+.crypto-section, .vault-section, .patients-section {
+    background: #ecf0f1;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+
+.patient-form {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 2px dashed #bdc3c7;
+}
+
+.patient-record {
+    background: white;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border-left: 4px solid #2ecc71;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.patient-record strong {
+    color: #2c3e50;
+    font-size: 1.1em;
+}
+
+.patient-record small {
+    color: #7f8c8d;
+    font-size: 0.9em;
+}
+
+.patient-record p {
+    margin-top: 10px;
+    color: #34495e;
+    line-height: 1.5;
+}
+
+/* Zones de texte */
+textarea {
+    min-height: 100px;
+    resize: vertical;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+}
+
+/* Section utilisateur connecté */
+#userInfo {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    color: white;
+    padding: 15px 30px;
+    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#userInfo p {
+    margin: 0;
+    font-size: 1.1em;
+}
+
+#userInfo button {
+    background: #e74c3c;
+    width: auto;
+    padding: 8px 20px;
+    font-size: 14px;
+}
+
+#userInfo button:hover {
+    background: #c0392b;
+}
+
+/* Messages d'information */
+#verifyEmail {
+    font-weight: bold;
+    color: #3498db;
+}
+
+#vaultResult {
+    margin-top: 15px;
+    padding: 15px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+/* Styles pour les résultats */
+#rsaKeys {
+    margin-top: 15px;
+}
+
+#rsaKeys h4 {
+    color: #34495e;
+    margin-top: 15px;
+}
+
+#rsaKeys textarea {
+    font-size: 12px;
+    min-height: 80px;
+    background: #f8f9fa;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .container {
+        margin: 0;
+        border-radius: 10px;
+    }
+    
+    header {
+        padding: 20px;
+    }
+    
+    header h1 {
+        font-size: 2em;
+    }
+    
+    .section {
+        padding: 20px;
+    }
+    
+    .auth-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .auth-btn {
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    #userInfo {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+    
+    #userInfo button {
+        width: 100%;
+        max-width: 200px;
+    }
+    
+    h2 {
+        font-size: 1.5em;
+    }
+    
+    h3 {
+        font-size: 1.3em;
+    }
+}
+
+@media (max-width: 480px) {
+    header h1 {
+        font-size: 1.7em;
+    }
+    
+    .section {
+        padding: 15px;
+    }
+    
+    input, textarea, button {
+        padding: 10px;
+        font-size: 14px;
+    }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.section:not(.hidden) {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Styles pour les codes */
+#mfaCode, #emailVerifyCode {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 5px;
+    font-family: 'Courier New', monospace;
+}
+/* Styles pour l'interface patient */
+.patient-section {
+    background: #ecf0f1;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+
+.data-list {
+    margin-top: 15px;
+}
+
+.data-item {
+    background: white;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.data-item h4 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.data-item p {
+    margin: 5px 0;
+    color: #34495e;
+}
+
+.no-data {
+    text-align: center;
+    color: #7f8c8d;
+    font-style: italic;
+    padding: 20px;
+}
+
+.welcome-message {
+    text-align: center;
+    font-size: 1.2em;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+/* Styles pour les rôles */
+.role-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+.role-doctor {
+    background: #3498db;
+    color: white;
+}
+
+.role-patient {
+    background: #2ecc71;
+    color: white;
+}
+
+/* Responsive pour l'interface patient */
+@media (max-width: 768px) {
+    .patient-section {
+        padding: 15px;
+    }
+    
+    .data-item {
+        padding: 10px;
+    }
+}
+/* Styles pour l'upload de fichiers */
+.file-upload-section {
+    margin: 15px 0;
+    padding: 15px;
+    border: 2px dashed #bdc3c7;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.file-upload-section label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.file-upload-section input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+}
+
+.file-upload-section small {
+    color: #7f8c8d;
+    font-size: 0.9em;
+}
+
+/* Styles pour le modal */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.modal h3 {
+    margin-top: 0;
+    color: #2c3e50;
+}
+
+.close {
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #7f8c8d;
+}
+
+.close:hover {
+    color: #e74c3c;
+}
+
+/* Options de chiffrement */
+.encryption-options {
+    margin: 20px 0;
+}
+
+.encryption-option {
+    margin: 15px 0;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.encryption-option:hover {
+    border-color: #3498db;
+    background: #f8f9fa;
+}
+
+.encryption-option input[type="radio"] {
+    margin-right: 10px;
+}
+
+.encryption-option label {
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.key-input {
+    margin-top: 10px;
+    padding: 10px;
+    background: #ecf0f1;
+    border-radius: 4px;
+}
+
+.key-input input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+}
+
+.key-info small {
+    color: #27ae60;
+    font-style: italic;
+}
+
+/* Actions du modal */
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.modal-actions button {
+    padding: 10px 20px;
+    width: auto;
+}
+
+.modal-actions button.primary {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+
+/* Liste des secrets */
+.secrets-list {
+    margin-top: 20px;
+}
+
+.secret-item {
+    background: white;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.secret-item h4 {
+    color: #2c3e50;
+    margin: 0 0 10px 0;
+}
+
+.secret-item p {
+    margin: 5px 0;
+    color: #34495e;
+}
+
+.secret-item small {
+    color: #7f8c8d;
+}
+
+.delete-secret {
+    background: #e74c3c;
+    padding: 5px 10px;
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+.delete-secret:hover {
+    background: #c0392b;
+}
+
+/* Actions des dossiers patients */
+.patient-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.patient-actions button {
+    padding: 8px 15px;
+    font-size: 14px;
+    width: auto;
+}
+
+.download-btn {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+}
+
+.decrypt-btn {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+}
+
+.delete-btn {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.encryption-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+.encrypted {
+    background: #e74c3c;
+    color: white;
+}
+
+.not-encrypted {
+    background: #2ecc71;
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        padding: 20px;
+    }
+    
+    .modal-actions {
+        flex-direction: column;
+    }
+    
+    .patient-actions {
+        flex-direction: column;
+    }
+    
+    .patient-actions button {
+        width: 100%;
+    }
+}
+/* Styles pour le modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: #000;
+}
+
+.encryption-options {
+    margin: 20px 0;
+}
+
+.option-group {
+    margin: 15px 0;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.key-input {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+}
+
+.confirm-btn {
+    background-color: #2c5aa0;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.confirm-btn:hover {
+    background-color: #1e3d6f;
+}
+
+.hidden {
+    display: none !important;
+}
