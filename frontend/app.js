@@ -1,457 +1,610 @@
-// ==========================================
-// CONFIGURATION
-// ==========================================
+// app.js (frontend) - MODIFIÉ AVEC JOURNAL D'ACTIVITÉ
 const API_BASE_URL = 'http://localhost:5000/api';
 
 let currentUser = null;
 let authToken = null;
 let currentSession = null;
 let pendingEmail = null;
+let currentEncryptedData = null; // Stocker temporairement les données chiffrées pour le popup de lecture
 
-
-// ==========================================
-// NAVIGATION AUTHENTIFICATION
-// ==========================================
-
+// ---------- Navigation / affichage ----------
 function showAuthChoice() {
-    document.getElementById('authChoiceSection').classList.remove('hidden');
-    document.getElementById('loginSection').classList.add('hidden');
-    document.getElementById('registerSection').classList.add('hidden');
-    document.getElementById('emailVerifySection').classList.add('hidden');
-    document.getElementById('mfaSection').classList.add('hidden');
-    document.getElementById('doctorApp').classList.add('hidden');
-    document.getElementById('patientApp').classList.add('hidden');
-    document.getElementById('commonFeatures').classList.add('hidden');
-    document.getElementById('userInfo').classList.add('hidden');
+    const ids = ['authChoiceSection','loginSection','registerSection','emailVerifySection','mfaSection','doctorApp','patientApp','commonFeatures','userInfo'];
+    ids.forEach(id => document.getElementById(id).classList.add('hidden'));
+    document.getElementById('authChoiceSection').classList.remove('hidden');
 }
-
 function showLoginForm() {
-    document.getElementById('authChoiceSection').classList.add('hidden');
-    document.getElementById('loginSection').classList.remove('hidden');
-    document.getElementById('registerSection').classList.add('hidden');
+    document.getElementById('authChoiceSection').classList.add('hidden');
+    document.getElementById('loginSection').classList.remove('hidden');
 }
-
 function showRegisterForm() {
-    document.getElementById('authChoiceSection').classList.add('hidden');
-    document.getElementById('loginSection').classList.add('hidden');
-    document.getElementById('registerSection').classList.remove('hidden');
+    document.getElementById('authChoiceSection').classList.add('hidden');
+    document.getElementById('registerSection').classList.remove('hidden');
 }
 
-
-// ==========================================
-// INSCRIPTION
-// ==========================================
-
+// ---------- Inscription ----------
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+    e.preventDefault();
+    const name = document.getElementById('registerName').value;
+    const email = document.getElementById('registerEmail').value;
+    const password = document.getElementById('registerPassword').value;
+    const role = document.getElementById('registerRole').value;
+    const phone = document.getElementById('registerPhone').value;
 
-    const name = document.getElementById('registerName').value;
-    const email = document.getElementById('registerEmail').value;
-    const password = document.getElementById('registerPassword').value;
-    const role = document.getElementById('registerRole').value;
-    const phone = document.getElementById('registerPhone').value;
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/register`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ email, password, name, phone, role })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            currentSession = data.session;
-            pendingEmail = email;
-            document.getElementById('registerSection').classList.add('hidden');
-            document.getElementById('emailVerifySection').classList.remove('hidden');
-            document.getElementById('verifyEmail').textContent = email;
-        } else {
-            alert('Erreur inscription : ' + data.message);
-        }
-    } catch (error) {
-        alert('Erreur : ' + error.message);
-    }
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email, password, name, phone, role })
+        });
+        const data = await response.json();
+        if (data.success) {
+            currentSession = data.session;
+            pendingEmail = email;
+            document.getElementById('registerSection').classList.add('hidden');
+            document.getElementById('emailVerifySection').classList.remove('hidden');
+            document.getElementById('verifyEmail').textContent = email;
+        } else {
+            alert('Erreur inscription : ' + data.message);
+        }
+    } catch (error) {
+        alert('Erreur : ' + error.message);
+    }
 });
 
-// Vérification email
 async function verifyEmail() {
-    const code = document.getElementById('emailVerifyCode').value;
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ session: currentSession, code })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            currentUser = data.user;
-            authToken = data.token;
-            showAppBasedOnRole();
-        } else {
-            alert('Code incorrect : ' + data.message);
-        }
-    } catch (error) {
-        alert('Erreur : ' + error.message);
-    }
+    const code = document.getElementById('emailVerifyCode').value;
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ session: currentSession, code })
+        });
+        const data = await response.json();
+        if (data.success) {
+            currentUser = data.user;
+            authToken = data.token;
+            showAppBasedOnRole();
+        } else {
+            alert('Code incorrect : ' + data.message);
+        }
+    } catch (error) {
+        alert('Erreur : ' + error.message);
+    }
 }
 
-
-// ==========================================
-// CONNEXION + MFA
-// ==========================================
-
+// ---------- Connexion + MFA ----------
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    const role = document.getElementById('loginRole').value;
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ email, password, role })
-        });
-
-        const data = await response.json();
-        if (data.success) {
-            currentSession = data.session;
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('mfaSection').classList.remove('hidden');
-        } else {
-            alert('Erreur connexion : ' + data.message);
-        }
-    } catch (error) {
-        alert('Erreur connexion : ' + error.message);
-    }
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const role = document.getElementById('loginRole').value;
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email, password, role })
+        });
+        const data = await response.json();
+        if (data.success) {
+            currentSession = data.session;
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('mfaSection').classList.remove('hidden');
+        } else alert('Erreur connexion : ' + data.message);
+    } catch (error) { alert('Erreur connexion : ' + error.message); }
 });
 
-// Vérification MFA
 async function verifyMFA() {
-    const code = document.getElementById('mfaCode').value;
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/auth/verify-mfa`, {
-
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ session: currentSession, code })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            currentUser = data.user;
-            authToken = data.token;
-            showAppBasedOnRole();
-        } else {
-            alert('Code MFA incorrect');
-        }
-    } catch (error) {
-        alert('Erreur MFA : ' + error.message);
-    }
+    const code = document.getElementById('mfaCode').value;
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/verify-mfa`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ session: currentSession, code })
+        });
+        const data = await response.json();
+        if (data.success) {
+            currentUser = data.user;
+            authToken = data.token;
+            showAppBasedOnRole();
+        } else alert('Code MFA incorrect');
+    } catch (error) { alert('Erreur MFA : ' + error.message); }
 }
 
-
-// ==========================================
-// AFFICHAGE SELON RÔLE
-// ==========================================
-
+// ---------- Affichage selon rôle ----------
 function showAppBasedOnRole() {
-    document.getElementById('mfaSection').classList.add('hidden');
-    document.getElementById('emailVerifySection').classList.add('hidden');
-    document.getElementById('userInfo').classList.remove('hidden');
-    document.getElementById('commonFeatures').classList.remove('hidden');
+    ['mfaSection','emailVerifySection', 'loginSection', 'registerSection', 'authChoiceSection'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    document.getElementById('userInfo').classList.remove('hidden');
+    document.getElementById('commonFeatures').classList.remove('hidden');
 
-    document.getElementById('userEmail').textContent = currentUser.email;
-    document.getElementById('userRole').textContent = currentUser.role === 'doctor' ? 'Médecin' : 'Patient';
+    document.getElementById('userEmail').textContent = currentUser.email;
+    document.getElementById('userRole').textContent = currentUser.role === 'doctor' ? 'Médecin' : 'Patient';
 
-    if (currentUser.role === 'doctor') {
-        document.getElementById('doctorApp').classList.remove('hidden');
-        document.getElementById('patientApp').classList.add('hidden');
-        document.getElementById('doctorName').textContent = currentUser.name;
-        loadPatients();
-    } else {
-        document.getElementById('doctorApp').classList.add('hidden');
-        document.getElementById('patientApp').classList.remove('hidden');
-        document.getElementById('patientName').textContent = currentUser.name;
-        loadPatientData();
-    }
+    if (currentUser.role === 'doctor') {
+        document.getElementById('doctorApp').classList.remove('hidden');
+        document.getElementById('patientApp').classList.add('hidden');
+        document.getElementById('doctorName').textContent = currentUser.name;
+        loadPatients();
+        loadKeyVault(); 
+        loadActivityLog(); // NOUVEAU: Charger le journal d'activité
+    } else {
+        document.getElementById('doctorApp').classList.add('hidden');
+        document.getElementById('patientApp').classList.remove('hidden');
+        document.getElementById('patientName').textContent = currentUser.name;
+        loadPatientData();
+    }
 }
 
-
-// ==========================================
-// AJOUT DOSSIER — POPUP CHIFFREMENT
-// ==========================================
-
-function openPopup() {
-    document.getElementById('encryptionPopup').classList.remove('hidden');
-}
-
-function closePopup() {
-    document.getElementById('encryptionPopup').classList.add('hidden');
-}
-
-// Fonctions de chiffrement AVANT envoi
+// ---------- Fonctions de chiffrement côté frontend ----------
 function cesarEncrypt(text, key = 3) {
-    return text.replace(/[a-z]/gi, c =>
-        String.fromCharCode(
-            (c.toLowerCase().charCodeAt(0) - 97 + parseInt(key)) % 26 + 97
-        )
-    );
+    key = parseInt(key) || 3; 
+    return text.replace(/[a-z]/gi, c =>
+        String.fromCharCode(
+            (c.toLowerCase().charCodeAt(0) - 97 + key) % 26 + 97
+        )
+    );
 }
-
 function vigenereEncrypt(text, key) {
-    key = key.toLowerCase();
-    let result = "";
-    let j = 0;
-
-    for (let i = 0; i < text.length; i++) {
-        const c = text[i];
-        if (/[a-z]/i.test(c)) {
-            let shift = key[j % key.length].charCodeAt(0) - 97;
-            let encrypted = String.fromCharCode(
-                ((c.toLowerCase().charCodeAt(0) - 97 + shift) % 26) + 97
-            );
-            result += encrypted;
-            j++;
-        } else {
-            result += c;
-        }
-    }
-    return result;
+    key = (key || "CLE").toLowerCase(); 
+    let result = "";
+    let j = 0;
+    for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (/[a-z]/i.test(c)) {
+            let shift = key[j % key.length].charCodeAt(0) - 97;
+            let encrypted = String.fromCharCode(
+                ((c.toLowerCase().charCodeAt(0) - 97 + shift) % 26) + 97
+            );
+            result += encrypted;
+            j++;
+        } else result += c;
+    }
+    return result;
 }
-
 function aesEncrypt(text) {
-    return btoa(text); // AES simulé côté frontend
+    return btoa(text); 
+}
+
+// ----------------- Gestion du Popup Ajout Dossier -----------------
+
+function openAddRecordPopup() {
+    document.getElementById("addRecordPopup").classList.remove("hidden");
+    document.getElementById('addPatientForm').reset(); // Nettoyer le formulaire à l'ouverture
+}
+
+function closeAddRecordPopup() {
+    document.getElementById("addRecordPopup").classList.add("hidden");
 }
 
 
-// Validation popup : chiffrer + envoyer au backend
-async function confirmEncryption() {
-    const type = document.getElementById("encryptionType").value;
-    const key = document.getElementById("encryptionKey").value;
+async function submitNewPatient(name, patientId, medicalRecord, encryption, encryptionKey, pdfFile) {
+    try {
+        if (!authToken) {
+            alert("Erreur: Vous n'êtes pas connecté. Veuillez vous reconnecter.");
+            logout();
+            return;
+        }
 
-    const name = document.getElementById("patientName").value;
-    const patientId = document.getElementById("patientId").value;
-    const medicalRecord = document.getElementById("medicalRecord").value;
-    const pdfFile = document.getElementById("pdfFile").files[0];
+        let encRecord = medicalRecord || "";
+        
+        // Chiffrement côté frontend selon l'algorithme choisi
+        if (encryption === 'cesar') encRecord = cesarEncrypt(encRecord, encryptionKey);
+        if (encryption === 'vigenere') encRecord = vigenereEncrypt(encRecord, encryptionKey);
+        if (encryption === 'aes') encRecord = aesEncrypt(encRecord); 
 
-    let encryptedRecord = "";
-    switch (type) {
-        case "cesar": encryptedRecord = cesarEncrypt(medicalRecord, key || 3); break;
-        case "vigenere": encryptedRecord = vigenereEncrypt(medicalRecord, key || "CLE"); break;
-        case "aes": encryptedRecord = aesEncrypt(medicalRecord); break;
-        default: encryptedRecord = medicalRecord;
-    }
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('patientId', patientId);
+        formData.append('medicalRecord', encRecord);
+        formData.append('encryption', encryption || 'none');
+        if (encryptionKey) formData.append('encryptionKey', encryptionKey);
+        if (pdfFile) formData.append('pdfFile', pdfFile);
 
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("patientId", patientId);
-    formData.append("medicalRecord", encryptedRecord);
-    formData.append("encryption", type);
-    if (pdfFile) formData.append("pdfFile", pdfFile);
+        const resp = await fetch(`${API_BASE_URL}/patients`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: formData
+        });
 
-    const response = await fetch(`${API_BASE_URL}/patients`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${authToken}` },
-        body: formData
-    });
+        const data = await resp.json();
+        if (!data.success) return alert("Erreur ajout dossier : " + data.message);
+        
+        // Sauvegarder automatiquement la clé si elle est chiffrée
+        if (encryption !== 'none' && encryptionKey) {
+            try {
+                // Nom de la clé basé sur l'ID du patient et le type d'algo (ex: P123_cesar)
+                const keyName = `${patientId}_${encryption}`;
+                await fetch(`${API_BASE_URL}/patients/keys`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+                    // key_value est la valeur réelle de la clé pour le stockage
+                    body: JSON.stringify({ name: keyName, algorithm: encryption, key_value: encryptionKey })
+                });
+            } catch (err) {
+                console.error("Erreur lors de la sauvegarde automatique de la clé:", err);
+            }
+        }
 
-    const data = await response.json();
-    if (data.success) {
-        closePopup();
-        loadPatients();
-        alert("Dossier chiffré + PDF ajouté !");
-    } else alert("Erreur : " + data.message);
+        alert("Dossier ajouté !");
+        
+        loadPatients(); 
+        loadKeyVault(); // Recharger le vault pour afficher la nouvelle clé
+        loadActivityLog(); // NOUVEAU: Mettre à jour le journal d'activité
+
+    } catch (err) {
+        alert("Erreur ajout dossier: " + err.message);
+    }
 }
 
-
-
-// ==========================================
-// GESTION PATIENTS (Médecin)
-// ==========================================
-
-// Échapper le HTML
+// ---------- Gestion patients (médecin) ----------
 function escapeHtml(unsafe) {
-    if (!unsafe) return "";
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+    if (!unsafe) return "";
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }
 
-// Lire / déchiffrer
+async function handleDecrypt(encryptedData) {
+    const keyInput = document.getElementById("recordKeyInput");
+    const errorBox = document.getElementById("recordKeyError");
+    const contentDiv = document.getElementById("recordContent");
+    const key = keyInput.value.trim();
+
+    errorBox.classList.add("hidden");
+    contentDiv.classList.add("hidden");
+
+    if (!key) {
+        errorBox.classList.remove("hidden");
+        errorBox.textContent = "Veuillez entrer une clé.";
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/patients/read/${encryptedData.id}?key=${encodeURIComponent(key)}`, {
+             headers: { "Authorization": `Bearer ${authToken}` }
+        });
+        const data = await response.json();
+        
+        if (data.success && data.record) {
+            contentDiv.innerText = data.record; 
+            contentDiv.classList.remove("hidden");
+            errorBox.classList.add("hidden");
+            loadActivityLog(); // NOUVEAU: Mettre à jour le journal après lecture réussie
+        } else {
+            errorBox.textContent = data.message || "Clé incorrecte ou erreur de déchiffrement.";
+            errorBox.classList.remove("hidden");
+        }
+    } catch (err) {
+        errorBox.textContent = "Erreur lors du déchiffrement.";
+        errorBox.classList.remove("hidden");
+    }
+}
+
 async function readRecord(id) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/patients/read/${id}`, {
-            headers: { "Authorization": `Bearer ${authToken}` }
-        });
+    try {
+        const response = await fetch(`${API_BASE_URL}/patients/read/${id}`, {
+            headers: { "Authorization": `Bearer ${authToken}` }
+        });
 
-        const data = await response.json();
+        const data = await response.json();
 
-        if (!data.success) {
-            return alert(data.message);
-        }
+        if (!data.success) {
+            alert(data.message);
+            return;
+        }
 
-        // Afficher les notes dans popup
-        document.getElementById("recordContent").textContent = data.record;
-        document.getElementById("readPopup").classList.remove("hidden");
+        document.getElementById("readPopup").classList.remove("hidden");
 
-    } catch (error) {
-        alert("Erreur lecture : " + error.message);
-    }
+        const keyInput = document.getElementById("recordKeyInput");
+        const validateBtn = document.getElementById("validateRecordKeyBtn");
+        const errorBox = document.getElementById("recordKeyError");
+        const contentDiv = document.getElementById("recordContent");
+
+        keyInput.value = "";
+        errorBox.classList.add("hidden");
+        contentDiv.classList.add("hidden");
+        contentDiv.innerText = "";
+        
+        currentEncryptedData = { id: id, ...data }; 
+
+        validateBtn.onclick = () => handleDecrypt(currentEncryptedData);
+        keyInput.onkeydown = (e) => {
+            if (e.key === 'Enter') handleDecrypt(currentEncryptedData);
+        };
+
+    } catch (err) {
+        alert("Erreur lors de la lecture du dossier.");
+    }
 }
-
 
 function closeReadPopup() {
-    document.getElementById("readPopup").classList.add("hidden");
+    document.getElementById('readPopup').classList.add("hidden");
+    document.getElementById("recordContent").classList.add("hidden");
+    document.getElementById("recordKeyError").classList.add("hidden");
+    document.getElementById("recordKeyInput").value = "";
+    currentEncryptedData = null;
+    
+    const validateBtn = document.getElementById("validateRecordKeyBtn");
+    if (validateBtn) validateBtn.onclick = null; 
+    const keyInput = document.getElementById("recordKeyInput");
+    if (keyInput) keyInput.onkeydown = null;
 }
 
-// Modifier avec re-chiffrement automatique côté backend
+
 async function editRecord(id) {
-    try {
-        const resp = await fetch(`${API_BASE_URL}/patients/read/${id}`, {
-            headers: { "Authorization": `Bearer ${authToken}` }
-        });
-        const data = await resp.json();
+    try {
+        const head = await fetch(`${API_BASE_URL}/patients/read/${id}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        let data = await head.json();
+        if (!data.success) return alert(data.message);
 
-        if (!data.success) {
-            alert("Impossible de charger le dossier : " + data.message);
-            return;
-        }
+        let currentText = data.record || "";
+        let keyForUse = null;
 
-        const newText = prompt("Modifier la note médicale :", data.record);
-        if (newText === null) return;
+        if (data.encryption_algorithm && data.encryption_algorithm !== 'none' && !data.encryption_key_stored) {
+            keyForUse = prompt(`Dossier chiffré (${data.encryption_algorithm}). Entrez la clé pour déchiffrer :`);
+            if (keyForUse === null) return;
+            
+            const r2 = await fetch(`${API_BASE_URL}/patients/read/${id}?key=${encodeURIComponent(keyForUse)}`, {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            const d2 = await r2.json();
+            if (!d2.success) return alert("Clé invalide : " + d2.message);
+            currentText = d2.record;
+        }
 
-        const resp2 = await fetch(`${API_BASE_URL}/patients/edit/${id}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${authToken}`
-            },
-            body: JSON.stringify({ newText })
-        });
+        const newText = prompt("Modifier la note médicale :", currentText);
+        if (newText === null) return;
 
-        const d2 = await resp2.json();
-        if (!d2.success) {
-            alert("Erreur modification : " + d2.message);
-            return;
-        }
+        let newKey = keyForUse;
+        if (data.encryption_algorithm && data.encryption_algorithm !== 'none') {
+            const ask = confirm("Voulez-vous fournir une clé pour rechiffrement / la stocker ? (OK = oui)");
+            if (ask) {
+                newKey = prompt("Entrez la clé à utiliser pour rechiffrement (laissez vide pour réutiliser la même) :", newKey || "");
+                if (newKey === null) newKey = undefined;
+            }
+        }
 
-        alert("Dossier modifié !");
-        loadPatients();
+        const resp = await fetch(`${API_BASE_URL}/patients/edit/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ newText, key: newKey })
+        });
 
-    } catch (error) {
-        alert("Erreur modification : " + error.message);
-    }
+        const d = await resp.json();
+        if (!d.success) return alert("Erreur modification : " + d.message);
+        alert("Dossier modifié !");
+        loadPatients();
+        loadActivityLog(); // NOUVEAU: Mettre à jour le journal après modification
+
+    } catch (err) {
+        alert("Erreur modification : " + err.message);
+    }
 }
 
-// Supprimer
 async function deleteRecord(id) {
-    try {
-        if (!confirm("Supprimer ce dossier ?")) return;
-
-        const resp = await fetch(`${API_BASE_URL}/patients/${id}`, {
-            method: "DELETE",
-            headers: { "Authorization": `Bearer ${authToken}` }
-        });
-
-        const data = await resp.json();
-        if (!data.success) {
-            alert("Erreur suppression : " + data.message);
-            return;
-        }
-
-        alert("Dossier supprimé");
-        loadPatients();
-
-    } catch (error) {
-        alert("Erreur suppression :" + error.message);
-    }
+    try {
+        if (!confirm("Supprimer ce dossier ?")) return;
+        const resp = await fetch(`${API_BASE_URL}/patients/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const d = await resp.json();
+        if (!d.success) return alert("Erreur suppression : " + d.message);
+        alert("Dossier supprimé");
+        loadPatients();
+        loadActivityLog(); // NOUVEAU: Mettre à jour le journal après suppression
+    } catch (err) {
+        alert("Erreur suppression : " + err.message);
+    }
 }
 
-// Charger dossiers
 async function loadPatients() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/patients`, {
-            headers: { "Authorization": `Bearer ${authToken}` }
-        });
+    try {
+        const response = await fetch(`${API_BASE_URL}/patients`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const data = await response.json();
 
-        const data = await response.json();
+        const patientsList = document.getElementById('patientsList');
+        if (!patientsList) return; 
 
-        const patientsList = document.getElementById('patientsList');
-        patientsList.innerHTML = '<h4>Dossiers Patients:</h4>';
+        patientsList.innerHTML = '<h4>Dossiers Patients:</h4>';
 
-        if (!data.success || data.count === 0) {
-            patientsList.innerHTML += "<p>Aucun dossier</p>";
-            return;
-        }
+        if (!data.success || data.count === 0) {
+            patientsList.innerHTML += "<p>Aucun dossier</p>";
+            return;
+        }
 
-        data.patients.forEach(patient => {
-            const div = document.createElement('div');
-            div.className = 'patient-record';
+        data.patients.forEach(patient => {
+            const div = document.createElement('div');
+            div.className = 'patient-record';
+            const pdfDownload = patient.pdf_url ? 
+                `<a href="${patient.pdf_url}" target="_blank" class="btn-pdf">📄 PDF</a>` : '';
 
-            div.innerHTML = `
-                <strong>${escapeHtml(patient.name)}</strong> (ID: ${escapeHtml(patient.patient_id)})<br>
-                <small>Créé le: ${new Date(patient.created_at).toLocaleString()}</small>
-                <p><strong>Chiffrement :</strong> ${patient.encryption_algorithm}</p>
-                <button onclick="readRecord(${patient.id})">🔓 Lire</button>
-                <button onclick="editRecord(${patient.id})">✏️ Modifier</button>
-                <button onclick="deleteRecord(${patient.id})">🗑️ Supprimer</button>
-                <hr>
-            `;
-            patientsList.appendChild(div);
-        });
+            div.innerHTML = `
+                <strong>${escapeHtml(patient.name)}</strong> (ID: ${escapeHtml(patient.patient_id)})<br>
+                <small>Créé le: ${new Date(patient.created_at).toLocaleString()}</small>
+                <p><strong>Chiffrement :</strong> ${patient.encryption_algorithm} ${patient.encryption_key ? '(clé stockée)' : ''}</p>
+                ${pdfDownload}
+                <button data-id="${patient.id}" class="btn-read">🔓 Lire</button>
+                <button data-id="${patient.id}" class="btn-edit">✏️ Modifier</button>
+                <button data-id="${patient.id}" class="btn-delete">🗑️ Supprimer</button>
+                <hr>
+            `;
+            patientsList.appendChild(div);
+        });
 
-    } catch (error) {
-        console.error(error);
-    }
+        patientsList.querySelectorAll('.btn-read').forEach(b => b.onclick = (e) => readRecord(e.currentTarget.dataset.id));
+        patientsList.querySelectorAll('.btn-edit').forEach(b => b.onclick = (e) => editRecord(e.currentTarget.dataset.id));
+        patientsList.querySelectorAll('.btn-delete').forEach(b => b.onclick = (e) => deleteRecord(e.currentTarget.dataset.id));
+
+    } catch (error) {
+        console.error(error);
+        alert("Erreur chargement dossiers : " + error.message);
+    }
 }
 
 
-// ==========================================
-// DONNÉES PATIENT (si role patient)
-// ==========================================
+// ----------------- FONCTION JOURNAL D'ACTIVITÉ (NOUVEAU) -----------------
+async function loadActivityLog() {
+    // Assurez-vous d'avoir un élément avec l'ID 'activityLogList' dans votre HTML
+    const logList = document.getElementById('activityLogList');
+    if (!logList) return; 
 
+    logList.innerHTML = '<p>Chargement du journal d\'activité...</p>';
+
+    try {
+        const resp = await fetch(`${API_BASE_URL}/patients/logs`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const d = await resp.json();
+        
+        if (!d.success) throw new Error(d.message || "Erreur API lors du chargement du journal.");
+
+        let htmlContent = ''; 
+
+        if (!d.logs || d.logs.length === 0) { 
+            htmlContent += '<p class="no-data">Aucune activité récente enregistrée.</p>'; 
+        } else {
+            d.logs.forEach(log => {
+                const date = new Date(log.timestamp).toLocaleString();
+                let details = escapeHtml(log.details);
+                
+                // Afficher les détails du patient si disponibles
+                if (log.patient_name) {
+                    details += ` (Dossier: ${escapeHtml(log.patient_name)} - ID: ${escapeHtml(log.patient_id)})`;
+                }
+                
+                htmlContent += `
+                    <div class="log-entry">
+                        <small><strong>${date}</strong></small>
+                        <p><strong>${escapeHtml(log.action)}:</strong> ${details}</p>
+                    </div>
+                `;
+            });
+        }
+        logList.innerHTML = htmlContent;
+
+    } catch (err) { 
+        console.error("Erreur chargement Journal d'Activité:", err);
+        logList.innerHTML = '<p class="error">❌ Erreur lors du chargement du journal.</p>';
+    }
+}
+// ----------------- FIN JOURNAL D'ACTIVITÉ -----------------
+
+
+// ---------- Key Vault (UI minimal) ----------
+async function loadKeyVault() {
+    // Cibler le nouveau conteneur de contenu, pas la section entière
+    const kvContent = document.getElementById('keyVaultContentList');
+    if (!kvContent) return;
+
+    // Afficher un message de chargement initial
+    kvContent.innerHTML = '<p>Chargement des clés...</p>';
+    
+    try {
+        const resp = await fetch(`${API_BASE_URL}/patients/keys`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        const d = await resp.json();
+        if (!d.success) throw new Error(d.message || "Erreur API lors du chargement des clés.");
+        
+        let htmlContent = ''; 
+
+        if (!d.keys || d.keys.length === 0) { 
+            htmlContent += '<p>Aucune clé enregistrée automatiquement.</p>'; 
+        } else {
+            d.keys.forEach(k => {
+                // Masquer le nom de la clé et garder le format simple demandé
+                htmlContent += `<div><strong>***</strong> - ${escapeHtml(k.algorithm)} - créé: ${new Date(k.created_at).toLocaleString()}</div>`;
+            });
+        }
+        kvContent.innerHTML = htmlContent;
+
+    } catch (err) { 
+        console.error("Erreur chargement Key Vault:", err);
+        // Afficher un message d'erreur dans la zone de contenu
+        kvContent.innerHTML = '<p style="color:red;">❌ Erreur lors du chargement des clés.</p>';
+    }
+}
+
+
+// ---------- Données patient (si role patient) ----------
 async function loadPatientData() {
-    await loadPrescriptions();
-    await loadDoctors();
-    await loadAppointments();
-    await loadMedicalNotes();
+    await loadPrescriptions();
+    await loadDoctors();
+    await loadAppointments();
+    await loadMedicalNotes();
 }
+async function loadPrescriptions() { document.getElementById('prescriptionsList').innerHTML = '<p>Liste des ordonnances (API non implémentée)</p>'; }
+async function loadDoctors() { document.getElementById('doctorsList').innerHTML = '<p>Liste des médecins (API non implémentée)</p>'; }
+async function loadAppointments() { document.getElementById('appointmentsList').innerHTML = '<p>Liste des RDV (API non implémentée)</p>'; }
+async function loadMedicalNotes() { document.getElementById('medicalNotesList').innerHTML = '<p>Liste des notes (API non implémentée)</p>'; }
 
-async function loadPrescriptions() { /* ... inchangé ... */ }
-async function loadDoctors() { /* ... inchangé ... */ }
-async function loadAppointments() { /* ... inchangé ... */ }
-async function loadMedicalNotes() { /* ... inchangé ... */ }
-
-
-// ==========================================
-// DÉCONNEXION
-// ==========================================
+// ---------- Déconnexion ----------
 function logout() {
-    currentUser = null;
-    authToken = null;
-    currentSession = null;
-    pendingEmail = null;
-
-    document.getElementById('doctorApp').classList.add('hidden');
-    document.getElementById('patientApp').classList.add('hidden');
-    document.getElementById('commonFeatures').classList.add('hidden');
-    document.getElementById('userInfo').classList.add('hidden');
-
-    showAuthChoice();
-    document.getElementById('loginForm').reset();
-    document.getElementById('registerForm').reset();
+    currentUser = null; authToken = null; currentSession = null; pendingEmail = null;
+    ['doctorApp','patientApp','commonFeatures','userInfo', 'readPopup', 'addRecordPopup'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.classList.add('hidden');
+    });
+    showAuthChoice();
+    try { 
+        document.getElementById('loginForm').reset(); 
+        document.getElementById('registerForm').reset(); 
+    } catch(e){}
 }
 
-// Initialisation
+// ---------- Initialisation ----------
 document.addEventListener('DOMContentLoaded', function() {
-    showAuthChoice();
+    showAuthChoice();
+    
+    // Écouteur de soumission du formulaire du popup d'ajout de dossier
+    const addPatientForm = document.getElementById('addPatientForm');
+    if (addPatientForm) {
+        addPatientForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('addName').value;
+            const patientId = document.getElementById('addPatientId').value;
+            const medicalRecord = document.getElementById('addMedicalRecord').value;
+            const encryption = document.getElementById('addEncryptionType').value;
+            const encryptionKey = document.getElementById('addEncryptionKey').value.trim() || null;
+            const pdfFile = document.getElementById('addPdfFile').files[0];
+
+            await submitNewPatient(name, patientId, medicalRecord, encryption, encryptionKey, pdfFile);
+            
+            closeAddRecordPopup();
+        });
+    }
+
+    // Écouteur pour le bouton d'ouverture du popup d'ajout
+    const openAddPatientBtn = document.querySelector('#doctorApp .patient-form button');
+    if (openAddPatientBtn) {
+        openAddPatientBtn.onclick = openAddRecordPopup;
+    }
+    
+    // L'écouteur pour la validation du code email
+    const verifyEmailBtn = document.querySelector('#emailVerifySection button');
+    if (verifyEmailBtn) verifyEmailBtn.onclick = verifyEmail;
+
+    // L'écouteur pour la validation du code MFA
+    const verifyMfaBtn = document.querySelector('#mfaSection button');
+    if (verifyMfaBtn) verifyMfaBtn.onclick = verifyMFA;
+
+    // L'écouteur pour le bouton de déconnexion
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.onclick = logout;
+
+    // L'écouteur pour la validation de la clé dans le popup de lecture
+    const validateKeyBtn = document.getElementById('validateRecordKeyBtn');
+    if (validateKeyBtn) validateKeyBtn.onclick = null; // Sera défini dans readRecord
+    
+    window.resendVerificationCode = () => alert("Renvoyer le code... (API non implémentée)");
 });
