@@ -1,5 +1,13 @@
-// app.js (frontend) - MODIFIÉ AVEC JOURNAL D'ACTIVITÉ
+// app.js (frontend) - MODIFIÉ AVEC JOURNAL D'ACTIVITÉ & AWS S3
 const API_BASE_URL = 'http://localhost:5000/api';
+
+// ----------------- AWS S3 CONFIGURATION (Placeholder Front-end) -----------------
+const AWS_S3_BUCKET = 'medivault-pro-pdfs'; // Le nom de votre bucket S3
+const AWS_REGION = 'eu-west-3'; // Votre région AWS
+
+// NOTE: Les clés AWS ne doivent JAMAIS être exposées dans le code front-end (navigateur).
+// Le backend est responsable de l'upload vers S3 en utilisant des identifiants sécurisés.
+// ---------------------------------------------------------------------------------
 
 let currentUser = null;
 let authToken = null;
@@ -165,6 +173,18 @@ function aesEncrypt(text) {
     return btoa(text); 
 }
 
+// NOUVEAU: Fonction de chiffrement RSA (Placeholder simple)
+function rsaEncrypt(text, publicKey) {
+    // ATTENTION: Le chiffrement RSA complet côté client est complexe et 
+    // nécessiterait une librairie (ex: jsencrypt) pour le vrai chiffrement asymétrique.
+    // Cette version est un PLACHOLDER utilisant Base64.
+    if (!publicKey) {
+        console.warn("Clé publique RSA manquante. Chiffrement par défaut (Base64) utilisé.");
+    }
+    // Ajout d'un suffixe pour le distinguer des autres encodages Base64
+    return btoa(text) + (publicKey ? '_RSA_ENCRYPTED' : '_RSA_DEFAULT');
+}
+
 // ----------------- Gestion du Popup Ajout Dossier -----------------
 
 function openAddRecordPopup() {
@@ -191,6 +211,7 @@ async function submitNewPatient(name, patientId, medicalRecord, encryption, encr
         if (encryption === 'cesar') encRecord = cesarEncrypt(encRecord, encryptionKey);
         if (encryption === 'vigenere') encRecord = vigenereEncrypt(encRecord, encryptionKey);
         if (encryption === 'aes') encRecord = aesEncrypt(encRecord); 
+        if (encryption === 'rsa') encRecord = rsaEncrypt(encRecord, encryptionKey);
 
         const formData = new FormData();
         formData.append('name', name);
@@ -198,7 +219,17 @@ async function submitNewPatient(name, patientId, medicalRecord, encryption, encr
         formData.append('medicalRecord', encRecord);
         formData.append('encryption', encryption || 'none');
         if (encryptionKey) formData.append('encryptionKey', encryptionKey);
-        if (pdfFile) formData.append('pdfFile', pdfFile);
+        
+        // --- AWS S3 INTEGRATION LOGIC (Managed by Backend) ---
+        if (pdfFile) {
+            // Le fichier PDF est envoyé au backend. Le backend est responsable de :
+            // 1. Recevoir le fichier (via Multer ou similaire).
+            // 2. Le téléverser vers le bucket AWS S3 spécifié (ex: AWS_S3_BUCKET).
+            // 3. Stocker l'URL S3 retournée dans la base de données.
+            console.log(`Le backend gère l'upload de ${pdfFile.name} vers S3 dans la région ${AWS_REGION}.`);
+            formData.append('pdfFile', pdfFile); // On continue d'envoyer le fichier au backend
+        }
+        // ----------------------------------------------------
 
         const resp = await fetch(`${API_BASE_URL}/patients`, {
             method: 'POST',
@@ -246,39 +277,56 @@ function escapeHtml(unsafe) {
 }
 
 async function handleDecrypt(encryptedData) {
-    const keyInput = document.getElementById("recordKeyInput");
-    const errorBox = document.getElementById("recordKeyError");
-    const contentDiv = document.getElementById("recordContent");
-    const key = keyInput.value.trim();
+    const keyInput = document.getElementById("recordKeyInput");
+    const errorBox = document.getElementById("recordKeyError");
+    const contentDiv = document.getElementById("recordContent");
+    // NOUVEAU: Récupération du conteneur PDF
+    const pdfContainer = document.getElementById("pdfContainer"); 
+    const key = keyInput.value.trim();
 
-    errorBox.classList.add("hidden");
-    contentDiv.classList.add("hidden");
+    errorBox.classList.add("hidden");
+    contentDiv.classList.add("hidden");
+    if (pdfContainer) pdfContainer.classList.add("hidden"); // Cache le conteneur PDF par défaut
 
-    if (!key) {
-        errorBox.classList.remove("hidden");
-        errorBox.textContent = "Veuillez entrer une clé.";
-        return;
-    }
+    if (!key) {
+        errorBox.classList.remove("hidden");
+        errorBox.textContent = "Veuillez entrer une clé.";
+        return;
+    }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/patients/read/${encryptedData.id}?key=${encodeURIComponent(key)}`, {
-             headers: { "Authorization": `Bearer ${authToken}` }
-        });
-        const data = await response.json();
-        
-        if (data.success && data.record) {
-            contentDiv.innerText = data.record; 
-            contentDiv.classList.remove("hidden");
-            errorBox.classList.add("hidden");
-            loadActivityLog(); // NOUVEAU: Mettre à jour le journal après lecture réussie
-        } else {
-            errorBox.textContent = data.message || "Clé incorrecte ou erreur de déchiffrement.";
-            errorBox.classList.remove("hidden");
-        }
-    } catch (err) {
-        errorBox.textContent = "Erreur lors du déchiffrement.";
-        errorBox.classList.remove("hidden");
-    }
+    try {
+        const response = await fetch(`${API_BASE_URL}/patients/read/${encryptedData.id}?key=${encodeURIComponent(key)}`, {
+             headers: { "Authorization": `Bearer ${authToken}` }
+        });
+        const data = await response.json();
+        
+        if (data.success && data.record) {
+            contentDiv.innerText = data.record; 
+            contentDiv.classList.remove("hidden");
+            errorBox.classList.add("hidden");
+            loadActivityLog(); 
+
+            // FIX: Afficher le lien PDF si un chemin existe dans le dossier initial
+            if (encryptedData.pdf_path && pdfContainer) {
+                // Le lien ci-dessous devrait maintenant pointer vers l'endpoint qui gère le téléchargement depuis S3
+                pdfContainer.innerHTML = `
+                    <p>Document PDF associé (sécurisé, S3):</p>
+                    <a href="${API_BASE_URL}/patients/pdf/${encryptedData.id}" target="_blank" class="btn secondary" style="display: block; text-align: center; margin-top: 10px;">
+                        🔗 Voir/Télécharger le PDF
+                    </a>
+                `;
+                pdfContainer.classList.remove("hidden");
+            }
+            // FIN FIX
+
+        } else {
+            errorBox.textContent = data.message || "Clé incorrecte ou erreur de déchiffrement.";
+            errorBox.classList.remove("hidden");
+        }
+    } catch (err) {
+        errorBox.textContent = "Erreur lors du déchiffrement.";
+        errorBox.classList.remove("hidden");
+    }
 }
 
 async function readRecord(id) {
@@ -300,10 +348,12 @@ async function readRecord(id) {
         const validateBtn = document.getElementById("validateRecordKeyBtn");
         const errorBox = document.getElementById("recordKeyError");
         const contentDiv = document.getElementById("recordContent");
+        const pdfContainer = document.getElementById("pdfContainer"); // Ajouté pour s'assurer qu'il est réinitialisé
 
         keyInput.value = "";
         errorBox.classList.add("hidden");
         contentDiv.classList.add("hidden");
+        if (pdfContainer) pdfContainer.classList.add("hidden"); // Cacher le PDF à l'ouverture
         contentDiv.innerText = "";
         
         currentEncryptedData = { id: id, ...data }; 
@@ -321,6 +371,10 @@ async function readRecord(id) {
 function closeReadPopup() {
     document.getElementById('readPopup').classList.add("hidden");
     document.getElementById("recordContent").classList.add("hidden");
+    // NOUVEAU: Cacher le conteneur PDF
+    const pdfContainer = document.getElementById("pdfContainer"); 
+    if (pdfContainer) pdfContainer.classList.add("hidden");
+    // FIN NOUVEAU
     document.getElementById("recordKeyError").classList.add("hidden");
     document.getElementById("recordKeyInput").value = "";
     currentEncryptedData = null;
@@ -424,8 +478,10 @@ async function loadPatients() {
         data.patients.forEach(patient => {
             const div = document.createElement('div');
             div.className = 'patient-record';
+            // Le lien direct vers le PDF est supprimé ici et déplacé dans handleDecrypt pour la sécurité.
+            // On conserve patient.pdf_url pour des raisons d'historique mais il n'est plus utilisé pour générer un lien immédiat.
             const pdfDownload = patient.pdf_url ? 
-                `<a href="${patient.pdf_url}" target="_blank" class="btn-pdf">📄 PDF</a>` : '';
+                `<span>📄 PDF (Securisé/S3)</span>` : ''; 
 
             div.innerHTML = `
                 <strong>${escapeHtml(patient.name)}</strong> (ID: ${escapeHtml(patient.patient_id)})<br>
