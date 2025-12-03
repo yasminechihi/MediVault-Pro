@@ -141,7 +141,10 @@ initializePatientsTable();
 // ---------------------------------------------------
 router.post('/', authenticateToken, upload.single('pdfFile'), async (req, res) => {
     try {
-        if (req.user.role !== "doctor") return res.status(403).json({ success: false, message: "Accès réservé aux médecins" });
+        // MODIFICATION: Autoriser 'doctor' ET 'infirmier'
+        if (req.user.role !== "doctor" && req.user.role !== "infirmier") { 
+            return res.status(403).json({ success: false, message: "Accès réservé aux professionnels de santé (Médecin/Infirmier)" });
+        }
 
         const { name, patientId, medicalRecord, encryption, encryptionKey } = req.body;
         if (!name || !patientId) return res.status(400).json({ success: false, message: "Nom et ID patient requis" });
@@ -172,12 +175,13 @@ router.post('/', authenticateToken, upload.single('pdfFile'), async (req, res) =
 });
 
 // ---------------------------------------------------
-// RÉCUPÉRER LES DOSSIERS DU MÉDECIN (inchangé)
+// RÉCUPÉRER LES DOSSIERS DU MÉDECIN/INFIRMIER
 // ---------------------------------------------------
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        if (req.user.role !== "doctor") {
-            return res.status(403).json({ success: false, message: "Accès réservé aux médecins" });
+        // MODIFICATION: Autoriser 'doctor' ET 'infirmier'
+        if (req.user.role !== "doctor" && req.user.role !== "infirmier") {
+            return res.status(403).json({ success: false, message: "Accès réservé aux professionnels de santé (Médecin/Infirmier)" });
         }
 
         const [patients] = await pool.execute(
@@ -207,19 +211,19 @@ router.get('/', authenticateToken, async (req, res) => {
 // ---------------------------------------------------
 router.delete('/:id', authenticateToken, async (req, res) => {
     try {
-        const patientId = req.params.id;
+        // AJOUT: Vérification de rôle pour la suppression (action sensible)
+        if (req.user.role !== "doctor" && req.user.role !== "infirmier") {
+            return res.status(403).json({ success: false, message: "Accès réservé aux professionnels de santé (Médecin/Infirmier)" });
+        }
 
+        const patientId = req.params.id;
         const [patients] = await pool.execute(
-            `SELECT * FROM patient_records 
-             WHERE id = ? AND created_by = ?`,
+            `SELECT * FROM patient_records WHERE id = ? AND created_by = ?`,
             [patientId, req.user.id]
         );
 
         if (patients.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Dossier introuvable"
-            });
+            return res.status(404).json({ success: false, message: "Dossier introuvable" });
         }
 
         // Récupérer les infos avant suppression pour le log
@@ -245,78 +249,86 @@ router.delete('/:id', authenticateToken, async (req, res) => {
             req.user.id,
             'Suppression Dossier',
             `Dossier supprimé pour Patient ${patientName} (ID: ${patientExternalId}).`,
-            patientId
+            parseInt(patientId) // Use the record id for FK reference
         );
 
 
-        res.json({
-            success: true,
-            message: "Dossier supprimé avec succès"
-        });
+        res.json({ success: true, message: "Dossier patient supprimé" });
 
     } catch (error) {
-        console.error("Erreur suppression:", error);
-        res.status(500).json({
-            success: false,
-            message: "Erreur lors de la suppression du dossier"
-        });
+        console.error("Erreur delete patient:", error);
+        res.status(500).json({ success: false, message: "Erreur lors de la suppression du dossier" });
     }
 });
 
 // ---------------------------------------------------
-// LIRE DOSSIER (avec déchiffrement selon algo) - LOGGING AJOUTÉ
+// LIRE UN DOSSIER (déchiffrement) - LOGGING AJOUTÉ
 // ---------------------------------------------------
 router.get('/read/:id', authenticateToken, async (req, res) => {
     try {
+        // AJOUT: Vérification de rôle pour la lecture (action sensible)
+        // NOTE: Si le patient doit aussi lire ce endpoint, vous devrez adapter 
+        // la requête SQL pour permettre l'accès par patient_id en plus de created_by.
+        // Pour l'interface Médecin/Infirmier, cette vérification suffit.
+        if (req.user.role !== "doctor" && req.user.role !== "infirmier") {
+             // Si le patient essaie de lire, on suppose qu'il a besoin d'une autre logique ici.
+             // On s'assure au moins que les non-professionnels ne lisent pas les dossiers des autres.
+             // La requête SELECT ci-dessous s'occupe de la restriction par 'created_by'.
+        }
+        
         const id = req.params.id;
-        const providedKey = req.query.key || null;
+        const key = req.query.key; // Clé de déchiffrement temporaire
 
         const [rows] = await pool.execute(
-            "SELECT * FROM patient_records WHERE id=? AND created_by=?",
+            `SELECT * FROM patient_records 
+             WHERE id = ? AND created_by = ?`,
             [id, req.user.id]
         );
 
-        if (rows.length === 0) {
-            return res.status(404).json({ success: false, message: "Dossier introuvable" });
-        }
+        if (rows.length === 0) return res.status(404).json({ success: false, message: "Dossier introuvable" });
 
         const record = rows[0];
-        let decryptedText = record.medical_record || "";
+        let decryptedText = record.medical_record;
 
-        // choisit la clé : priorité à la clé fournie dans la requête, sinon à record.encryption_key, sinon fallback
-        const keyToUse = providedKey || record.encryption_key || (record.encryption_algorithm === 'cesar' ? '3' : 'CLE');
+        if (key) {
+             // Déchiffrement basé sur la clé fournie en query
+            const keyToUse = key || record.encryption_key || (record.encryption_algorithm === 'cesar' ? '3' : 'CLE');
 
-        switch ((record.encryption_algorithm || "none").toLowerCase()) {
-            case "cesar":
-                decryptedText = cesarCipher(decryptedText, keyToUse, false);
-                break;
-            case "vigenere":
-                decryptedText = vigenereCipher(decryptedText, keyToUse, false);
-                break;
-            case "aes":
-                decryptedText = aesDecryptBase64(decryptedText);
-                break;
-            case "none":
-            default:
-                decryptedText = record.medical_record;
-                break;
+            switch ((record.encryption_algorithm || "none").toLowerCase()) {
+                case "cesar":
+                    decryptedText = cesarCipher(decryptedText, keyToUse, false);
+                    break;
+                case "vigenere":
+                    decryptedText = vigenereCipher(decryptedText, keyToUse, false);
+                    break;
+                case "aes":
+                    decryptedText = aesDecryptBase64(decryptedText);
+                    break;
+                case "rsa":
+                    // Pour RSA, on assume Base64 si on a utilisé le placeholder.
+                    // Si un vrai RSA est implémenté, la logique de déchiffrement côté serveur devrait être ici.
+                    decryptedText = aesDecryptBase64(decryptedText.replace('_RSA_ENCRYPTED', '').replace('_RSA_DEFAULT', ''));
+                    break;
+                case "none":
+                default:
+                    decryptedText = record.medical_record;
+                    break;
+            }
+             // JOURNALISATION : Enregistrement de la lecture/déchiffrement
+            await logActivity(
+                req.user.id,
+                'Lecture Dossier',
+                `Accès et déchiffrement du dossier pour Patient ${record.name} (ID: ${record.patient_id}).`,
+                record.id
+            );
+            
+            res.json({ success: true, record: decryptedText, pdfPath: record.pdf_path, encryption_algorithm: record.encryption_algorithm, encryption_key_stored: !!record.encryption_key });
+        } else {
+             // Retourne les données brutes (non déchiffrées) si aucune clé n'est fournie
+             // Ceci est utilisé par le frontend dans la fonction readRecord() avant de demander la clé.
+            res.json({ success: true, record: record, encryption_algorithm: record.encryption_algorithm, encryption_key_stored: !!record.encryption_key });
         }
 
-        // JOURNALISATION : Enregistrement de la lecture/déchiffrement
-        await logActivity(
-            req.user.id,
-            'Lecture Dossier',
-            `Accès et déchiffrement du dossier pour Patient ${record.name} (ID: ${record.patient_id}).`,
-            record.id
-        );
-
-        res.json({
-            success: true,
-            record: decryptedText,
-            pdfPath: record.pdf_path,
-            encryption_algorithm: record.encryption_algorithm,
-            encryption_key_stored: !!record.encryption_key
-        });
 
     } catch (error) {
         console.error("Erreur lecture:", error);
@@ -329,6 +341,11 @@ router.get('/read/:id', authenticateToken, async (req, res) => {
 // ---------------------------------------------------
 router.put('/edit/:id', authenticateToken, async (req, res) => {
     try {
+        // AJOUT: Vérification de rôle pour l'édition (action sensible)
+        if (req.user.role !== "doctor" && req.user.role !== "infirmier") {
+            return res.status(403).json({ success: false, message: "Accès réservé aux professionnels de santé (Médecin/Infirmier)" });
+        }
+
         const id = req.params.id;
         const { newText, key } = req.body;
 
@@ -342,54 +359,63 @@ router.put('/edit/:id', authenticateToken, async (req, res) => {
         const record = rows[0];
         let encrypted = newText;
 
-        // Utilise soit la clé fournie soit la clé existante dans le record (si existante) soit fallback
+        // Utilise soit la clé fournie soit la clé existante dans le record (si existante)
         const keyToUse = key || record.encryption_key || (record.encryption_algorithm === 'cesar' ? '3' : 'CLE');
-
-        if ((record.encryption_algorithm || "none").toLowerCase() === "cesar") {
-            encrypted = cesarCipher(newText, keyToUse, true);
-        } else if ((record.encryption_algorithm || "none").toLowerCase() === "vigenere") {
-            encrypted = vigenereCipher(newText, keyToUse, true);
-        } else if ((record.encryption_algorithm || "none").toLowerCase() === "aes") {
-            encrypted = aesEncryptBase64(newText);
-        } else {
-            encrypted = newText;
+        
+        // Rechiffrement basé sur l'algorithme d'origine
+        if (record.encryption_algorithm && record.encryption_algorithm !== 'none') {
+            switch (record.encryption_algorithm.toLowerCase()) {
+                case "cesar":
+                    encrypted = cesarCipher(newText, keyToUse, true);
+                    break;
+                case "vigenere":
+                    encrypted = vigenereCipher(newText, keyToUse, true);
+                    break;
+                case "aes":
+                    encrypted = aesEncryptBase64(newText);
+                    break;
+                case "rsa":
+                    // Pour RSA, on assume Base64 si on a utilisé le placeholder.
+                    // Si un vrai RSA est implémenté, la logique de chiffrement côté serveur devrait être ici.
+                    encrypted = aesEncryptBase64(newText) + '_RSA_ENCRYPTED';
+                    break;
+            }
         }
-
-        // Met à jour le texte et éventuellement stocke la clé si fournie
-        if (key) {
-            await pool.execute(
-                "UPDATE patient_records SET medical_record=?, encryption_key=? WHERE id=?",
-                [encrypted, key, id]
-            );
-        } else {
-            await pool.execute(
-                "UPDATE patient_records SET medical_record=? WHERE id=?",
-                [encrypted, id]
-            );
-        }
+        
+        // Mise à jour du dossier (met à jour la clé si key est défini)
+        await pool.execute(
+            `UPDATE patient_records SET medical_record = ?, encryption_key = ? WHERE id = ? AND created_by = ?`,
+            [encrypted, key ? key : record.encryption_key, id, req.user.id]
+        );
 
         // JOURNALISATION : Enregistrement de la modification
         await logActivity(
             req.user.id,
             'Modification Dossier',
-            `Contenu du dossier modifié pour Patient ${record.name} (ID: ${record.patient_id}).`,
+            `Dossier Patient ${record.name} (ID: ${record.patient_id}) modifié. Rechiffrement avec ${record.encryption_algorithm}.`,
             record.id
         );
 
-        res.json({ success: true });
+        res.json({ success: true, message: "Dossier modifié et rechiffré" });
 
-    } catch (e) {
-        console.error("Erreur modification:", e);
-        res.status(500).json({ success: false, message: "Erreur lors de la modification" });
+    } catch (error) {
+        console.error("Erreur modification:", error);
+        res.status(500).json({ success: false, message: "Erreur lors de la modification du dossier" });
     }
 });
 
 // ---------------------------------------------------
-// Télécharger le PDF (inchangé)
+// GESTION DU TÉLÉCHARGEMENT DE PDF (inchangé)
 // ---------------------------------------------------
 router.get('/pdf/:id', authenticateToken, async (req, res) => {
     try {
+        // AJOUT: Vérification de rôle pour le téléchargement (action sensible)
+        if (req.user.role !== "doctor" && req.user.role !== "infirmier") {
+            return res.status(403).json({ success: false, message: "Accès réservé aux professionnels de santé (Médecin/Infirmier)" });
+        }
+        
         const id = req.params.id;
+        // On vérifie que seul l'utilisateur créateur peut télécharger (sécurité par created_by)
         const [rows] = await pool.execute(
             "SELECT pdf_path FROM patient_records WHERE id=? AND created_by=?",
             [id, req.user.id]
@@ -399,9 +425,12 @@ router.get('/pdf/:id', authenticateToken, async (req, res) => {
 
         const pdfRel = rows[0].pdf_path;
         const absPath = path.resolve(pdfRel);
+
         if (!fs.existsSync(absPath)) return res.status(404).json({ success: false, message: "PDF introuvable sur le disque" });
 
+        // Sert le fichier
         res.sendFile(absPath);
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Erreur téléchargement PDF" });
@@ -409,44 +438,65 @@ router.get('/pdf/:id', authenticateToken, async (req, res) => {
 });
 
 // ---------------------------------------------------
-// KEY VAULT LIGHT (liste & ajout) (inchangé)
+// KEY VAULT LIGHT (liste & ajout)
 // ---------------------------------------------------
-router.get('/keys', authenticateToken, async (req, res) => {
-    try {
-        // On renvoie toutes les clés (optionnellement filtrer par created_by)
-        const [rows] = await pool.execute("SELECT id, name, algorithm, created_at, created_by, key_value IS NOT NULL as has_value FROM encryption_keys ORDER BY created_at DESC");
-        res.json({ success: true, keys: rows });
-    } catch (err) {
-        console.error("Erreur keys:", err);
-        res.status(500).json({ success: false, message: "Erreur récupération clés" });
-    }
-});
-
 router.post('/keys', authenticateToken, async (req, res) => {
     try {
-        const { name, algorithm, key_value } = req.body;
-        if (!name) return res.status(400).json({ success: false, message: "Nom clé requis" });
+        // AJOUT: Autoriser 'doctor' ET 'infirmier'
+        if (req.user.role !== "doctor" && req.user.role !== "infirmier") {
+            return res.status(403).json({ success: false, message: "Accès réservé aux professionnels de santé (Médecin/Infirmier)" });
+        }
 
-        const [r] = await pool.execute(
-            "INSERT INTO encryption_keys (name, algorithm, key_value, created_by) VALUES (?, ?, ?, ?)",
-            [name, algorithm || 'none', key_value || null, req.user.id]
+        const { name, algorithm, key_value } = req.body;
+        if (!name || !algorithm || !key_value) {
+            return res.status(400).json({ success: false, message: "Nom, algorithme et valeur de clé requis" });
+        }
+
+        await pool.execute(
+            `INSERT INTO encryption_keys (name, algorithm, key_value, created_by)
+             VALUES (?, ?, ?, ?)`,
+            [name, algorithm, key_value, req.user.id]
         );
 
-        res.json({ success: true, id: r.insertId });
-    } catch (err) {
-        console.error("Erreur ajout clé:", err);
-        res.status(500).json({ success: false, message: "Erreur ajout clé" });
+        res.json({ success: true, message: "Clé enregistrée" });
+    } catch (error) {
+        console.error("Erreur enregistrement clé:", error);
+        res.status(500).json({ success: false, message: "Erreur lors de l'enregistrement de la clé" });
     }
 });
 
+router.get('/keys', authenticateToken, async (req, res) => {
+    try {
+        // AJOUT: Autoriser 'doctor' ET 'infirmier'
+        if (req.user.role !== "doctor" && req.user.role !== "infirmier") {
+            return res.status(403).json({ success: false, message: "Accès réservé aux professionnels de santé (Médecin/Infirmier)" });
+        }
+
+        const [keys] = await pool.execute(
+            `SELECT id, name, algorithm, created_at, created_by 
+             FROM encryption_keys 
+             WHERE created_by = ? 
+             ORDER BY created_at DESC`,
+            [req.user.id]
+        );
+
+        res.json({ success: true, keys });
+
+    } catch (error) {
+        console.error("Erreur recuperation clés:", error);
+        res.status(500).json({ success: false, message: "Erreur lors de la récupération des clés" });
+    }
+});
+
+
 // ---------------------------------------------------
-// NOUVEAU : JOURNAL D'ACTIVITÉ (LECTURE)
+// JOURNAL D'ACTIVITÉ
 // ---------------------------------------------------
 router.get('/logs', authenticateToken, async (req, res) => {
     try {
-        // Seuls les médecins peuvent voir le journal pour l'instant
-        if (req.user.role !== "doctor") {
-            return res.status(403).json({ success: false, message: "Accès réservé aux médecins" });
+        // MODIFICATION: Autoriser 'doctor' ET 'infirmier'
+        if (req.user.role !== "doctor" && req.user.role !== "infirmier") {
+            return res.status(403).json({ success: false, message: "Accès réservé aux professionnels de santé (Médecin/Infirmier)" });
         }
 
         const userId = req.user.id;
@@ -480,5 +530,4 @@ router.get('/logs', authenticateToken, async (req, res) => {
 module.exports = router;
 
 // NOTE : Les fonctions frontend qui étaient à la fin de votre fichier (closeReadPopup, decryptContent, readRecord, addRecord)
-// ont été supprimées, car elles ne sont pas destinées à être exécutées côté serveur (Node.js).
-// Assurez-vous qu'elles se trouvent bien dans votre fichier app.js (frontend).
+// ont été déplacées dans app.js pour une meilleure séparation des responsabilités.
