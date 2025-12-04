@@ -126,7 +126,7 @@ function showAppBasedOnRole() {
     document.getElementById('commonFeatures').classList.remove('hidden');
 
     document.getElementById('userEmail').textContent = currentUser.email;
-    document.getElementById('userRole').textContent = currentUser.role === 'doctor' ? 'Médecin' : 'Patient';
+    document.getElementById('userRole').textContent = currentUser.role === 'doctor' ? 'Médecin' : 'infirmier(ère)';
 
     if (currentUser.role === 'doctor') {
         document.getElementById('doctorApp').classList.remove('hidden');
@@ -267,7 +267,7 @@ async function submitNewPatient(name, patientId, medicalRecord, encryption, encr
     }
 }
 
-// ---------- Gestion patients (médecin) ----------
+// ---------- Gestion patients (médecin et infirmier) ----------
 function escapeHtml(unsafe) {
     if (!unsafe) return "";
     return unsafe
@@ -434,6 +434,8 @@ async function editRecord(id) {
         if (!d.success) return alert("Erreur modification : " + d.message);
         alert("Dossier modifié !");
         loadPatients();
+        // NOUVEAU: Recharger pour l'infirmier aussi si nécessaire
+        if (currentUser && currentUser.role !== 'doctor') loadPatientRecords(); 
         loadActivityLog(); // NOUVEAU: Mettre à jour le journal après modification
 
     } catch (err) {
@@ -452,6 +454,8 @@ async function deleteRecord(id) {
         if (!d.success) return alert("Erreur suppression : " + d.message);
         alert("Dossier supprimé");
         loadPatients();
+        // NOUVEAU: Recharger pour l'infirmier aussi si nécessaire
+        if (currentUser && currentUser.role !== 'doctor') loadPatientRecords(); 
         loadActivityLog(); // NOUVEAU: Mettre à jour le journal après suppression
     } catch (err) {
         alert("Erreur suppression : " + err.message);
@@ -459,27 +463,40 @@ async function deleteRecord(id) {
 }
 
 async function loadPatients() {
+    const patientsList = document.getElementById('patientsList');
+    // Vérifier si l'élément du médecin est présent
+    if (!patientsList) return; 
+    // Appeler la fonction générique avec l'ID spécifique au médecin
+    await loadPatientRecords('patientsList');
+}
+
+/**
+ * Fonction générique pour charger et afficher les dossiers patients.
+ * @param {string} targetElementId L'ID du conteneur HTML où afficher la liste.
+ */
+async function loadPatientRecords(targetElementId = 'patientRecordsList') {
     try {
         const response = await fetch(`${API_BASE_URL}/patients`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         const data = await response.json();
 
-        const patientsList = document.getElementById('patientsList');
-        if (!patientsList) return; 
+        const listContainer = document.getElementById(targetElementId);
+        if (!listContainer) return;
 
-        patientsList.innerHTML = '<h4>Dossiers Patients:</h4>';
+        // Mise à jour du titre si c'est la liste de l'infirmier
+        listContainer.innerHTML = targetElementId === 'patientsList' ? 
+            '<h4>Dossiers Patients:</h4>' : '<h4>Dossiers enregistrés:</h4>';
 
         if (!data.success || data.count === 0) {
-            patientsList.innerHTML += "<p>Aucun dossier</p>";
+            listContainer.innerHTML += "<p>Aucun dossier</p>";
             return;
         }
 
         data.patients.forEach(patient => {
             const div = document.createElement('div');
             div.className = 'patient-record';
-            // Le lien direct vers le PDF est supprimé ici et déplacé dans handleDecrypt pour la sécurité.
-            // On conserve patient.pdf_url pour des raisons d'historique mais il n'est plus utilisé pour générer un lien immédiat.
+            
             const pdfDownload = patient.pdf_url ? 
                 `<span>📄 PDF (Securisé/S3)</span>` : ''; 
 
@@ -493,12 +510,13 @@ async function loadPatients() {
                 <button data-id="${patient.id}" class="btn-delete">🗑️ Supprimer</button>
                 <hr>
             `;
-            patientsList.appendChild(div);
+            listContainer.appendChild(div);
         });
 
-        patientsList.querySelectorAll('.btn-read').forEach(b => b.onclick = (e) => readRecord(e.currentTarget.dataset.id));
-        patientsList.querySelectorAll('.btn-edit').forEach(b => b.onclick = (e) => editRecord(e.currentTarget.dataset.id));
-        patientsList.querySelectorAll('.btn-delete').forEach(b => b.onclick = (e) => deleteRecord(e.currentTarget.dataset.id));
+        // Attribution des écouteurs d'événements
+        listContainer.querySelectorAll('.btn-read').forEach(b => b.onclick = (e) => readRecord(e.currentTarget.dataset.id));
+        listContainer.querySelectorAll('.btn-edit').forEach(b => b.onclick = (e) => editRecord(e.currentTarget.dataset.id));
+        listContainer.querySelectorAll('.btn-delete').forEach(b => b.onclick = (e) => deleteRecord(e.currentTarget.dataset.id));
 
     } catch (error) {
         console.error(error);
@@ -591,17 +609,16 @@ async function loadKeyVault() {
 }
 
 
-// ---------- Données patient (si role patient) ----------
+// ---------- Données patient (si role patient/infirmier) ----------
 async function loadPatientData() {
-    await loadPrescriptions();
-    await loadDoctors();
-    await loadAppointments();
-    await loadMedicalNotes();
+    await loadPatientRecords(); // NOUVEAU: Charge les dossiers patients
 }
-async function loadPrescriptions() { document.getElementById('prescriptionsList').innerHTML = '<p>Liste des ordonnances (API non implémentée)</p>'; }
-async function loadDoctors() { document.getElementById('doctorsList').innerHTML = '<p>Liste des médecins (API non implémentée)</p>'; }
-async function loadAppointments() { document.getElementById('appointmentsList').innerHTML = '<p>Liste des RDV (API non implémentée)</p>'; }
-async function loadMedicalNotes() { document.getElementById('medicalNotesList').innerHTML = '<p>Liste des notes (API non implémentée)</p>'; }
+
+// Les fonctions de chargement des autres données sont nettoyées car elles n'ont pas d'implémentation
+// async function loadPrescriptions() { document.getElementById('prescriptionsList').innerHTML = '<p>Liste des ordonnances (API non implémentée)</p>'; }
+// async function loadDoctors() { document.getElementById('doctorsList').innerHTML = '<p>Liste des médecins (API non implémentée)</p>'; }
+// async function loadAppointments() { document.getElementById('appointmentsList').innerHTML = '<p>Liste des RDV (API non implémentée)</p>'; }
+// async function loadMedicalNotes() { document.getElementById('medicalNotesList').innerHTML = '<p>Liste des notes (API non implémentée)</p>'; }
 
 // ---------- Déconnexion ----------
 function logout() {
