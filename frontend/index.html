@@ -28,8 +28,8 @@
                 <input type="password" id="loginPassword" placeholder="Mot de passe" required>
                 <select id="loginRole" required>
                     <option value="">Sélectionnez votre rôle</option>
-                    <option value="patient">Patient</option>
                     <option value="doctor">Médecin</option>
+                    <option value="patient">infirmier(ère)</option>
                 </select>
                 <button type="submit">Se connecter</button>
             </form>
@@ -44,7 +44,7 @@
                 <input type="password" id="registerPassword" placeholder="Mot de passe (min. 6 caractères)" required>
                 <select id="registerRole" required>
                     <option value="">Sélectionnez votre rôle</option>
-                    <option value="patient">Patient</option>
+                    <option value="patient">infirmier(ère)</option>
                     <option value="doctor">Médecin</option>
                 </select>
                 <input type="tel" id="registerPhone" placeholder="Téléphone (optionnel)">
@@ -92,13 +92,10 @@
         </div>
 
         <div id="patientApp" class="section hidden">
-            <h2>👤 Interface Patient</h2>
+            <h2>👤 Interface infirmier(ère)</h2>
             <p class="welcome-message">Bienvenue, <span id="patientName"></span></p>
 
-            <div class="patient-section"><h3>💊 Mes Ordonnances</h3><div id="prescriptionsList" class="data-list"></div></div>
-            <div class="patient-section"><h3>👨‍⚕️ Mes Médecins</h3><div id="doctorsList" class="data-list"></div></div>
-            <div class="patient-section"><h3>📅 Mes Rendez-vous</h3><div id="appointmentsList" class="data-list"></div></div>
-            <div class="patient-section"><h3>📝 Notes de Mes Médecins</h3><div id="medicalNotesList" class="data-list"></div></div>
+            <div class="patient-section"><h3>Gestion des dossiers patients</h3><div id="prescriptionsList" class="data-list"></div></div>
         </div>
 
         <div id="commonFeatures" class="section hidden"></div>
@@ -161,7 +158,6 @@
             </p>
 
             <div id="recordContent" class="record-box hidden"></div>
-            
             <div id="pdfContainer" class="hidden"></div> 
 
             <div class="popup-buttons">
