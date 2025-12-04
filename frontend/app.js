@@ -1,4 +1,4 @@
-// app.js (frontend) - MODIFIÉ AVEC JOURNAL D'ACTIVITÉ & AWS S3
+// app.js (frontend) - MODIFIÉ POUR L'ENREGISTREMENT SIMULTANÉ ET REFRESH
 const API_BASE_URL = 'http://localhost:5000/api';
 
 // ----------------- AWS S3 CONFIGURATION (Placeholder Front-end) -----------------
@@ -258,9 +258,12 @@ async function submitNewPatient(name, patientId, medicalRecord, encryption, encr
 
         alert("Dossier ajouté !");
         
-        loadPatients(); 
+        // Mise à jour simultanée des deux interfaces après enregistrement en DB
+        loadPatients(); // Rafraîchit l'interface médecin (ID 'patientsList')
+        loadPatientRecords(); // Rafraîchit l'interface infirmier (ID 'patientRecordsList')
+        
         loadKeyVault(); // Recharger le vault pour afficher la nouvelle clé
-        loadActivityLog(); // NOUVEAU: Mettre à jour le journal d'activité
+        loadActivityLog(); // Mettre à jour le journal d'activité
 
     } catch (err) {
         alert("Erreur ajout dossier: " + err.message);
@@ -433,10 +436,11 @@ async function editRecord(id) {
         const d = await resp.json();
         if (!d.success) return alert("Erreur modification : " + d.message);
         alert("Dossier modifié !");
+        
         loadPatients();
-        // NOUVEAU: Recharger pour l'infirmier aussi si nécessaire
-        if (currentUser && currentUser.role !== 'doctor') loadPatientRecords(); 
-        loadActivityLog(); // NOUVEAU: Mettre à jour le journal après modification
+        loadPatientRecords(); // Rafraîchit l'interface infirmier
+        
+        loadActivityLog(); // Mettre à jour le journal après modification
 
     } catch (err) {
         alert("Erreur modification : " + err.message);
@@ -453,10 +457,11 @@ async function deleteRecord(id) {
         const d = await resp.json();
         if (!d.success) return alert("Erreur suppression : " + d.message);
         alert("Dossier supprimé");
+        
         loadPatients();
-        // NOUVEAU: Recharger pour l'infirmier aussi si nécessaire
-        if (currentUser && currentUser.role !== 'doctor') loadPatientRecords(); 
-        loadActivityLog(); // NOUVEAU: Mettre à jour le journal après suppression
+        loadPatientRecords(); // Rafraîchit l'interface infirmier
+        
+        loadActivityLog(); // Mettre à jour le journal après suppression
     } catch (err) {
         alert("Erreur suppression : " + err.message);
     }
@@ -484,9 +489,8 @@ async function loadPatientRecords(targetElementId = 'patientRecordsList') {
         const listContainer = document.getElementById(targetElementId);
         if (!listContainer) return;
 
-        // Mise à jour du titre si c'est la liste de l'infirmier
-        listContainer.innerHTML = targetElementId === 'patientsList' ? 
-            '<h4>Dossiers Patients:</h4>' : '<h4>Dossiers enregistrés:</h4>';
+        // Uniformisation du titre pour les deux interfaces
+        listContainer.innerHTML = '<h4>Dossiers Patients:</h4>';
 
         if (!data.success || data.count === 0) {
             listContainer.innerHTML += "<p>Aucun dossier</p>";
@@ -513,7 +517,7 @@ async function loadPatientRecords(targetElementId = 'patientRecordsList') {
             listContainer.appendChild(div);
         });
 
-        // Attribution des écouteurs d'événements
+        // Attribution des écouteurs d'événements - IDENTIQUE AUX DEUX RÔLES
         listContainer.querySelectorAll('.btn-read').forEach(b => b.onclick = (e) => readRecord(e.currentTarget.dataset.id));
         listContainer.querySelectorAll('.btn-edit').forEach(b => b.onclick = (e) => editRecord(e.currentTarget.dataset.id));
         listContainer.querySelectorAll('.btn-delete').forEach(b => b.onclick = (e) => deleteRecord(e.currentTarget.dataset.id));
@@ -611,7 +615,8 @@ async function loadKeyVault() {
 
 // ---------- Données patient (si role patient/infirmier) ----------
 async function loadPatientData() {
-    await loadPatientRecords(); // NOUVEAU: Charge les dossiers patients
+    // L'infirmier charge les dossiers patients en utilisant la même fonction que le médecin.
+    await loadPatientRecords(); 
 }
 
 // Les fonctions de chargement des autres données sont nettoyées car elles n'ont pas d'implémentation
